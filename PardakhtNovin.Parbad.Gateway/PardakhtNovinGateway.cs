@@ -6,6 +6,7 @@
     using global::Parbad.Abstraction;
     using global::Parbad.GatewayBuilders;
 
+    [Gateway(Name)]
     public class PardakhtNovinGateway : GatewayBase<PardakhtNovinGatewayAccount>
     {
         public const string Name = "PardakhtNovin";
