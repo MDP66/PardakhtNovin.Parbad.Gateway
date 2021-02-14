@@ -5,6 +5,8 @@
 	<Version>0.0.1</Version>
 	<Authors>Masoud DaneshPour</Authors>
 	<Company />
+	<RepositoryUrl>https://github.com/MDP66/PardakhtNovin.Parbad.Gateway.git</RepositoryUrl>
+	<RepositoryType>git</RepositoryType>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Ardalis.GuardClauses" Version="3.0.1" />
