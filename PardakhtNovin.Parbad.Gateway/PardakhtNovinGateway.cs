@@ -14,6 +14,7 @@
     using System.Threading;
     using System.Threading.Tasks;
     using Ardalis.GuardClauses;
+    using Exceptions;
     using global::Parbad.Net;
     using Model;
     using Newtonsoft.Json;
@@ -41,21 +42,28 @@
 
         public override async Task<IPaymentRequestResult> RequestAsync(Invoice invoice, CancellationToken cancellationToken = new CancellationToken())
         {
-            var account = await GetAccountAsync();
-            await DoMerchantLoginAsync(account, cancellationToken);
-            var dataToSign = await GenerateDataToSignAsync(account, invoice, cancellationToken);
-            var token = await GetTokenFromSignedDataAsync(account, dataToSign, cancellationToken);
+            try
+            {
+                var account = await GetAccountAsync();
+                await DoMerchantLoginAsync(account, cancellationToken);
+                var dataToSign = await GenerateDataToSignAsync(account, invoice, cancellationToken);
+                var token = await GetTokenFromSignedDataAsync(account, dataToSign, cancellationToken);
 
-            return PaymentRequestResult.SucceedWithPost(
-                account.Name,
-                _httpContextAccessor.HttpContext,
-                _gatewayOptions.PaymentPageUrl,
-                new Dictionary<string, string>
-                {
-                    {"token", token.Token},
-                    {"language","fa"},
-                    {"RedirectURL", invoice.CallbackUrl}
-                });
+                return PaymentRequestResult.SucceedWithPost(
+                    account.Name,
+                    _httpContextAccessor.HttpContext,
+                    _gatewayOptions.PaymentPageUrl,
+                    new Dictionary<string, string>
+                    {
+                        {"token", token.Token},
+                        {"language","fa"},
+                        {"RedirectURL", invoice.CallbackUrl}
+                    });
+            }
+            catch (Exception e)
+            {
+                return PaymentRequestResult.Failed(_messagesOptions.PaymentFailed);
+            }
         }
 
         public override async Task<IPaymentVerifyResult> VerifyAsync(InvoiceContext context,
@@ -86,6 +94,7 @@
                 _gatewayOptions.ApiLoginUrl,
                 new { account.UserName, account.Password },
                 cancellationToken);
+            if (!result.IsSuccessStatusCode) throw new MerchantLoginFailedException(_messagesOptions);
         }
         private async Task<TransactionDataResult> GenerateDataToSignAsync(PardakhtNovinGatewayAccount account, Invoice invoice, CancellationToken cancellationToken)
         {
@@ -100,14 +109,9 @@
                 _gatewayOptions.ApiTransactionDataToSignUrl,
                 data,
                 cancellationToken);
+            if (!signData.IsSuccessStatusCode) throw new GenerateTransactionDataFailedException(_messagesOptions);
 
-            var responseData = await signData
-                .Content
-                .ReadAsStringAsync();
-
-            Guard.Against.NullOrEmpty(responseData, nameof(responseData));
-
-            return JsonConvert.DeserializeObject<TransactionDataResult>(responseData);
+            return await DeserializeResponseMessageTo<TransactionDataResult>(signData);
         }
         private async Task<SignedDataTokenResult> GetTokenFromSignedDataAsync(PardakhtNovinGatewayAccount account, TransactionDataResult dataToSign, CancellationToken cancellationToken)
         {
@@ -121,18 +125,23 @@
                 _gatewayOptions.ApiGenerateTokenUrl,
                 data,
                 cancellationToken);
+            if (!tokenData.IsSuccessStatusCode) throw new GetTokenDataFailedException(_messagesOptions);
+            return await DeserializeResponseMessageTo<SignedDataTokenResult>(tokenData);
+        }
+        private WSContext GenerateWSContext(PardakhtNovinGatewayAccount account)
+        {
+            return new WSContext(account.UserName, account.Password);
+        }
 
-            var responseData = await tokenData
+        private async Task<T> DeserializeResponseMessageTo<T>(HttpResponseMessage responseMessage) where T : new()
+        {
+            var responseData = await responseMessage
                 .Content
                 .ReadAsStringAsync();
 
             Guard.Against.NullOrEmpty(responseData, nameof(responseData));
 
-            return JsonConvert.DeserializeObject<SignedDataTokenResult>(responseData);
-        }
-        private WSContext GenerateWSContext(PardakhtNovinGatewayAccount account)
-        {
-            return new WSContext(account.UserName, account.Password);
+            return JsonConvert.DeserializeObject<T>(responseData);
         }
         #endregion
     }
