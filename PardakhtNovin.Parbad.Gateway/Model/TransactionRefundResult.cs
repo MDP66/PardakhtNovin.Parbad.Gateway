@@ -2,9 +2,9 @@
 {
     using System;
 
-    public class VerifyMerchantTransactionResult
+    public class TransactionRefundResult
     {
-        public bool TransactionVerifiedSuccessfully()
+        public bool TransactionRefundedSuccessfully()
         {
             return string.Equals(Result, "er_succeed", StringComparison.CurrentCultureIgnoreCase);
         }

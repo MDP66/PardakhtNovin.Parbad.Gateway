@@ -2,9 +2,9 @@
 {
     using Ardalis.GuardClauses;
 
-    public class VerifyMerchantTransactionRequest
+    public class TransactionRefundRequest
     {
-        public VerifyMerchantTransactionRequest(WSContext wsContext, string token, string refNum)
+        public TransactionRefundRequest(WSContext wsContext, string token, string refNum)
         {
             Guard.Against.Null(wsContext, nameof(wsContext));
             Guard.Against.NullOrEmpty(token, nameof(token));
