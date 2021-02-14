@@ -15,6 +15,7 @@
     using System.Threading.Tasks;
     using Ardalis.GuardClauses;
     using Exceptions;
+    using global::Parbad.Http;
     using global::Parbad.Net;
     using Model;
     using Newtonsoft.Json;
@@ -69,7 +70,19 @@
         public override async Task<IPaymentVerifyResult> VerifyAsync(InvoiceContext context,
             CancellationToken cancellationToken = new CancellationToken())
         {
-            throw new NotImplementedException();
+            try
+            {
+                var account = await GetAccountAsync();
+                var paymentData = await ExtractPaymentDataFromBankResponseAsync(context, cancellationToken);
+                if (!paymentData.IsPaymentSuccessFul()) return PaymentVerifyResult.Failed(_messagesOptions.PaymentFailed);
+
+                var verifyResult = await VerifyTransactionAsync(account, paymentData, cancellationToken);
+                return PaymentVerifyResult.Succeed(verifyResult.RefNum, _messagesOptions.PaymentSucceed);
+            }
+            catch (Exception e)
+            {
+                return PaymentVerifyResult.Failed(e.Message);
+            }
         }
 
         public override async Task<IPaymentRefundResult> RefundAsync(InvoiceContext context, Money amount, CancellationToken cancellationToken = new CancellationToken())
@@ -77,7 +90,69 @@
             throw new NotImplementedException();
         }
 
-        #region Privates
+        #region Privates Verify
+
+        private async Task<NovinPardakhtPaymentData> ExtractPaymentDataFromBankResponseAsync(InvoiceContext context, CancellationToken cancellationToken)
+        {
+            var paymentData = new NovinPardakhtPaymentData();
+            var token = await
+                _httpContextAccessor.HttpContext.Request.TryGetParamAsync(nameof(NovinPardakhtPaymentData.Token),
+                    cancellationToken);
+            if (token.Exists)
+                paymentData.Token = token.Value;
+
+            var state = await
+                _httpContextAccessor.HttpContext.Request.TryGetParamAsync(nameof(NovinPardakhtPaymentData.State),
+                    cancellationToken);
+            if (state.Exists)
+                paymentData.State = state.Value;
+
+            var resNum = await
+                _httpContextAccessor.HttpContext.Request.TryGetParamAsync(nameof(NovinPardakhtPaymentData.ResNum),
+                    cancellationToken);
+            if (resNum.Exists)
+                paymentData.ResNum = resNum.Value;
+
+            var refNum = await
+                _httpContextAccessor.HttpContext.Request.TryGetParamAsync(nameof(NovinPardakhtPaymentData.RefNum),
+                    cancellationToken);
+            if (refNum.Exists)
+                paymentData.RefNum = refNum.Value;
+
+            var customerRefNum = await
+                _httpContextAccessor.HttpContext.Request.TryGetParamAsync(nameof(NovinPardakhtPaymentData.CustomerRefNum),
+                    cancellationToken);
+            if (customerRefNum.Exists)
+                paymentData.CustomerRefNum = customerRefNum.Value;
+            return paymentData;
+        }
+
+
+        private async Task<VerifyMerchantTransactionResult> VerifyTransactionAsync(PardakhtNovinGatewayAccount account,NovinPardakhtPaymentData paymentData,CancellationToken cancellationToken)
+        {
+            var data = new VerifyMerchantTransactionRequest(
+                GenerateWSContext(account),
+                paymentData.Token,
+                paymentData.RefNum
+            );
+
+            var verifyTransaction = await _httpClient.PostJsonAsync(_gatewayOptions.ApiVerificationUrl, data, cancellationToken);
+
+            var responseData =
+                await verifyTransaction
+                    .Content
+                    .ReadAsStringAsync();
+
+            Guard.Against.NullOrEmpty(responseData, nameof(responseData));
+
+            var verifyTransactionResult = JsonConvert.DeserializeObject<VerifyMerchantTransactionResult>(responseData);
+            if (!verifyTransactionResult.TransactionVerifiedSuccessfully()) throw new TransactionCanceledException(_messagesOptions);
+
+            return verifyTransactionResult;
+        }
+        #endregion
+
+        #region Privates Request
         private async Task<PardakhtNovinGatewayAccount> GetAccountAsync()
         {
             var accountProvider = await AccountProvider
@@ -128,6 +203,9 @@
             if (!tokenData.IsSuccessStatusCode) throw new GetTokenDataFailedException(_messagesOptions);
             return await DeserializeResponseMessageTo<SignedDataTokenResult>(tokenData);
         }
+        #endregion
+
+        #region Privates
         private WSContext GenerateWSContext(PardakhtNovinGatewayAccount account)
         {
             return new WSContext(account.UserName, account.Password);
