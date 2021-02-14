@@ -3,7 +3,7 @@ name: PardakhtNovin.Parbad.Gateway .NET - Release
 on:
   workflow_run:
     workflows: ["PardakhtNovin.Parbad.Gateway .NET - CI"]
-    branches: [ master ]
+    branches: [ main ]
     types:
       - completed
 
