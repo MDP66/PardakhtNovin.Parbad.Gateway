@@ -5,8 +5,16 @@
 	<Version>0.0.2</Version>
 	<Authors>Masoud DaneshPour</Authors>
 	<Company />
-	<RepositoryUrl>https://github.com/MDP66/PardakhtNovin.Parbad.Gateway.git</RepositoryUrl>
+	<RepositoryUrl>https://github.com/MDP66/PardakhtNovin.Parbad.Gateway</RepositoryUrl>
 	<RepositoryType>git</RepositoryType>
+	<PackageIcon>icon.png</PackageIcon>
+	<PackageIconUrl>https://raw.githubusercontent.com/MDP66/PardakhtNovin.Parbad.Gateway/master/PardakhtNovin.Parbad.Gateway/Parbad-EN-256x256.png</PackageIconUrl>
+	<RepositoryUrl>https://github.com/MDP66/PardakhtNovin.Parbad.Gateway</RepositoryUrl>
+	<GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+	<Description>Pardakht Novin ( Eghtesad Novin Bank ) integration for Padbad
+
+		need more information and source code ? see: https://github.com/MDP66/PardakhtNovin.Parbad.Gateway</Description>
+	<PackageTags>parbad Pardakht-Novin پرداخت نوین اقتصاد نوین</PackageTags>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Ardalis.GuardClauses" Version="3.0.1" />

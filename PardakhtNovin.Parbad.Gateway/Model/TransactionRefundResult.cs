@@ -6,7 +6,7 @@
     {
         public bool TransactionRefundedSuccessfully()
         {
-            return string.Equals(Result, "er_succeed", StringComparison.CurrentCultureIgnoreCase);
+            return string.Equals(Result, "ersucceed", StringComparison.CurrentCultureIgnoreCase);
         }
 
         public string RefNum { get; set; }
