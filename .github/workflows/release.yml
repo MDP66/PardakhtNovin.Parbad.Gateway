@@ -1,0 +1,29 @@
+name: PardakhtNovin.Parbad.Gateway .NET - Release
+
+on:
+  workflow_run:
+    workflows: ["PardakhtNovin.Parbad.Gateway .NET - CI"]
+    branches: [ main ]
+    types:
+      - completed
+
+jobs:
+  publish-nuget:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Setup .NET Core
+      uses: actions/setup-dotnet@v1
+      with:
+        dotnet-version: 5.0.x
+    - name: Install dependencies
+      run: dotnet restore
+    - name: Build
+      run: dotnet build --configuration Release --no-restore
+    - name: Publish to NuGet
+      uses: brandedoutcast/publish-nuget@v2
+      with:
+        PROJECT_FILE_PATH: PardakhtNovin.Parbad.Gateway/PardakhtNovin.Parbad.Gateway.csproj
+        VERSION_REGEX: '^\s*<Version>(.*)<\/Version>\s*$'
+        TAG_FORMAT: '*'
+        NUGET_KEY: ${{secrets.NUGET_API_KEY}}
