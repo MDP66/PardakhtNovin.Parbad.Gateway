@@ -119,13 +119,15 @@
         }
         private async Task DoMerchantLoginAsync(PardakhtNovinGatewayAccount account, CancellationToken cancellationToken)
         {
-            var httpClient = _httpClientFactory.CreateClient(Name);
-            httpClient.DefaultRequestHeaders.ExpectContinue = false;
-            var result = await httpClient.PostJsonAsync(
-                    _gatewayOptions.ApiLoginUrl,
-                    new { account.UserName, account.Password },
-                    cancellationToken);
-            if (!result.IsSuccessStatusCode) throw new MerchantLoginFailedException(_messagesOptions);
+            using(var httpClient = _httpClientFactory.CreateClient(Name))
+            {
+                httpClient.DefaultRequestHeaders.ExpectContinue = false;
+                var result = await httpClient.PostJsonAsync(
+                        _gatewayOptions.ApiLoginUrl,
+                        new { account.UserName, account.Password },
+                        cancellationToken);
+                if (!result.IsSuccessStatusCode) throw new MerchantLoginFailedException(_messagesOptions);
+            }
         }
         private async Task<TransactionDataResult> GenerateDataToSignAsync(PardakhtNovinGatewayAccount account, Invoice invoice, CancellationToken cancellationToken)
         {
@@ -136,14 +138,16 @@
                 invoice.Amount,
                 invoice.CallbackUrl
             );
-            var httpClient = _httpClientFactory.CreateClient(Name);
-            var signData = await httpClient.PostJsonAsync(
-                    _gatewayOptions.ApiTransactionDataToSignUrl,
-                    data,
-                    cancellationToken);
-            if (!signData.IsSuccessStatusCode) throw new GenerateTransactionDataFailedException(_messagesOptions);
+            using(var httpClient = _httpClientFactory.CreateClient(Name))
+            {
+                var signData = await httpClient.PostJsonAsync(
+                        _gatewayOptions.ApiTransactionDataToSignUrl,
+                        data,
+                        cancellationToken);
+                if (!signData.IsSuccessStatusCode) throw new GenerateTransactionDataFailedException(_messagesOptions);
 
-            return await DeserializeResponseMessageTo<TransactionDataResult>(signData);
+                return await DeserializeResponseMessageTo<TransactionDataResult>(signData);
+            }
         }
         private async Task<SignedDataTokenResult> GetTokenFromSignedDataAsync(PardakhtNovinGatewayAccount account, TransactionDataResult dataToSign, CancellationToken cancellationToken)
         {
@@ -152,14 +156,15 @@
                 "72726e87-e5e2-4d2a-8f16-c4de22d380e7-6b06d7fa-6dab-475a-9991-a23ee7f24d45",
                 dataToSign.UniqueId
             );
-            var httpClient = _httpClientFactory.CreateClient(Name);
-            
-            var tokenData = await httpClient.PostJsonAsync(
-            _gatewayOptions.ApiGenerateTokenUrl,
-                data,
-                cancellationToken);
-            if (!tokenData.IsSuccessStatusCode) throw new GetTokenDataFailedException(_messagesOptions);
-                return await DeserializeResponseMessageTo<SignedDataTokenResult>(tokenData);
+            using(var httpClient = _httpClientFactory.CreateClient(Name))
+            {
+                var tokenData = await httpClient.PostJsonAsync(
+                _gatewayOptions.ApiGenerateTokenUrl,
+                    data,
+                    cancellationToken);
+                if (!tokenData.IsSuccessStatusCode) throw new GetTokenDataFailedException(_messagesOptions);
+                    return await DeserializeResponseMessageTo<SignedDataTokenResult>(tokenData);
+            }
         }
         #endregion
 
@@ -205,20 +210,22 @@
                 paymentData.Token,
                 paymentData.RefNum
             );
-            var httpClient = _httpClientFactory.CreateClient(Name);
-            var verifyTransaction = await httpClient.PostJsonAsync(_gatewayOptions.ApiVerificationUrl, data, cancellationToken);
+            using(var httpClient = _httpClientFactory.CreateClient(Name))
+            {
+                var verifyTransaction = await httpClient.PostJsonAsync(_gatewayOptions.ApiVerificationUrl, data, cancellationToken);
 
-            var responseData =
-                    await verifyTransaction
-                        .Content
-                        .ReadAsStringAsync();
+                var responseData =
+                        await verifyTransaction
+                            .Content
+                            .ReadAsStringAsync();
 
-            Guard.Against.NullOrEmpty(responseData, nameof(responseData));
+                Guard.Against.NullOrEmpty(responseData, nameof(responseData));
 
-            var verifyTransactionResult = JsonConvert.DeserializeObject<VerifyMerchantTransactionResult>(responseData);
-            if (!verifyTransactionResult.TransactionVerifiedSuccessfully()) throw new TransactionCanceledException(_messagesOptions);
+                var verifyTransactionResult = JsonConvert.DeserializeObject<VerifyMerchantTransactionResult>(responseData);
+                if (!verifyTransactionResult.TransactionVerifiedSuccessfully()) throw new TransactionCanceledException(_messagesOptions);
 
-            return verifyTransactionResult;
+                return verifyTransactionResult;
+            }
         }
         #endregion
 
@@ -232,20 +239,22 @@
                 context.Payment.Token,
                 context.Payment.TransactionCode
             );
-            var httpClient = _httpClientFactory.CreateClient(Name);
+            using(var httpClient = _httpClientFactory.CreateClient(Name))
+            {
             
-            var refundTransaction = await httpClient.PostJsonAsync(
-                    _gatewayOptions.ApiRefundUrl,
-                    data,
-                    cancellationToken);
-            var responseData = await refundTransaction
-                    .Content
-                    .ReadAsStringAsync();
-                Guard.Against.NullOrEmpty(responseData, nameof(responseData));
+                var refundTransaction = await httpClient.PostJsonAsync(
+                        _gatewayOptions.ApiRefundUrl,
+                        data,
+                        cancellationToken);
+                var responseData = await refundTransaction
+                        .Content
+                        .ReadAsStringAsync();
+                    Guard.Against.NullOrEmpty(responseData, nameof(responseData));
 
-            var refundTransactionStatus = JsonConvert.DeserializeObject<TransactionRefundResult>(responseData);
-            if (!refundTransactionStatus.TransactionRefundedSuccessfully())
-                throw new RefundTransactionFailedException(_messagesOptions);
+                var refundTransactionStatus = JsonConvert.DeserializeObject<TransactionRefundResult>(responseData);
+                if (!refundTransactionStatus.TransactionRefundedSuccessfully())
+                    throw new RefundTransactionFailedException(_messagesOptions);
+            }
         }
 
         #endregion
